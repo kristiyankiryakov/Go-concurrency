@@ -28,10 +28,15 @@ var eatTime = 1 * time.Second
 var thinkTime = 3 * time.Second
 var sleepTime = 1 * time.Second
 
+var orderMutex sync.Mutex
+var diningOrder = []string{}
+
 func main() {
 	fmt.Println("Dining Philosophers Problem")
 	fmt.Println("---------------------------")
 	fmt.Println("Table is empty.")
+
+	time.Sleep(sleepTime)
 
 	// start the meal
 	dine()
@@ -57,6 +62,8 @@ func dine() {
 	}
 
 	wg.Wait()
+
+	fmt.Println(diningOrder)
 }
 
 func diningProblem(philosopher Philosopher, wg *sync.WaitGroup, forks map[int]*sync.Mutex, seated *sync.WaitGroup) {
@@ -70,11 +77,18 @@ func diningProblem(philosopher Philosopher, wg *sync.WaitGroup, forks map[int]*s
 
 	// eat number of hunger times
 	for i := hunger; i > 0; i-- {
-		// get a lock on both forks  // logical race condition
-		forks[philosopher.leftFork].Lock()
-		fmt.Printf("%s takes the left fork.\n", philosopher.name)
-		forks[philosopher.rightFork].Lock()
-		fmt.Printf("%s takes the right fork.\n", philosopher.name)
+
+		if philosopher.leftFork > philosopher.rightFork {
+			forks[philosopher.rightFork].Lock()
+			fmt.Printf("%s takes the right fork.\n", philosopher.name)
+			forks[philosopher.leftFork].Lock()
+			fmt.Printf("%s takes the left fork.\n", philosopher.name)
+		} else {
+			forks[philosopher.leftFork].Lock()
+			fmt.Printf("%s takes the left fork.\n", philosopher.name)
+			forks[philosopher.rightFork].Lock()
+			fmt.Printf("%s takes the right fork.\n", philosopher.name)
+		}
 
 		fmt.Printf("%s has both forks and is eating.\n", philosopher.name)
 		time.Sleep(eatTime)
@@ -90,4 +104,8 @@ func diningProblem(philosopher Philosopher, wg *sync.WaitGroup, forks map[int]*s
 
 	fmt.Println(philosopher.name, " is satisfied.")
 	fmt.Println(philosopher.name, " left the table.")
+
+	orderMutex.Lock()
+	diningOrder = append(diningOrder, philosopher.name)
+	orderMutex.Unlock()
 }
